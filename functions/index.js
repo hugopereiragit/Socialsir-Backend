@@ -80,6 +80,25 @@ db
         console.error(err);
       });
    });
+
+
+
+const isEmail = (email) => {
+  //reg expression retirada da net para verificar se o email e valido
+  // https://emailregex.com/
+  const regEx = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+  if(email.match(regEx)) return true; //esta string está formatadaa como um email regular
+  else return false;
+}
+
+const isEmpty = (string) => { //verificar se esta a ser enviado algo vazio
+  if(string.trim() === '') return true;
+  else return false;
+}
+
+
+
+
 // signup rout
 app.post('/signup', (req,res) => {
   const newUser = {
@@ -88,7 +107,23 @@ app.post('/signup', (req,res) => {
     confirmPassword: req.body.confirmPassword,
     handle: req.body.handle,
   };
+
+let errors = {};
+
+  if(isEmpty(newUser.email)){
+    errors.email = 'Email é um campo obrigatório'
+  } else if(!isEmail(newUser.email)){
+    errors.email = 'O email introduzido não é valido'
+  }
+
+  if(isEmpty(newUser.password)) errors.password = 'Password é um campo obrigatório';
+  if(newUser.password !== newUser.confirmPassword) errors.confirmPassword = 'As passwords não são iguais ';
+  if(isEmpty(newUser.handle)) errors.handle = 'Não pode estar vazio';
+
+
+  if(Object.keys(errors).length > 0) return res.status(400).json(errors);
     //todo validar data
+    let token, userId; //user ID como variavel para ser acedivel
   db.doc(`/users/${newUser.handle}`).get()
   .then(doc => {
     if(doc.exists){ //user ja existe
@@ -98,10 +133,21 @@ app.post('/signup', (req,res) => {
     }
   })
 .then(data =>{
+  userId = data.user.uid;
  return data.user.getIdToken();
 })
-.then(token => {
-  return res.status(201).json({token});
+.then(idToken => {
+  token = idToken;
+  const userCredentials = {
+    handle : newUser.handle,
+    email: newUser.email,
+    createdAt: new Date().toISOString(),
+    userId
+  };
+  db.doc(`/users/${newUser.handle}`).set(userCredentials); //criar o documento
+})
+.then(() =>{
+  return res.status(201).json({ token });
 })
 .catch(err => {
   console.error(err);
@@ -123,6 +169,41 @@ app.post('/signup', (req,res) => {
     return res.status(500).json({ error: err.code});
   });*/
 });
+
+
+
+app.post('/login',(req,res) => {
+
+  const user = {
+    email: req.body.email,
+    password: req.body.password
+  };
+
+  let errors = {};
+
+  if(isEmpty(user.email)) errors.email= 'Não pode estar vazio';
+  if(isEmpty(user.password)) password.email= 'Não pode estar vazio';
+
+  if(Object.keys(errors).length > 0) return res.status(400).json(errors);
+  firebase.auth().signInWithEmailAndPassword(user.email, user.password)
+  .then(data => {
+    return data.user.getIdToken();
+  })
+  .then(token => {
+    return res.json({token});
+  })
+  .catch(err =>{
+    console.error(err);
+    if(err.code === 'auth/wrong-password'){
+      return res.status(403).json({ general: "Password Errada "}); // 403 = nao autorizado
+    } else {
+      return res.status(500).json({
+        error: err.code
+      });
+    }
+  });
+
+})
 
    // express permite exemplo hhtps//blabla.com/API/screams em vez de https//blabla.com/Screams
    exports.api = functions.https.onRequest(app);
