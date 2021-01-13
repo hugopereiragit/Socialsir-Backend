@@ -44,8 +44,8 @@ const isEmail = (email) => {
 
     let errors = {};
   
-    if(isEmpty(user.email)) errors.email= 'Não pode estar vazio';
-    if(isEmpty(user.password)) password.email= 'Não pode estar vazio';
+    if(isEmpty(data.email)) errors.email= 'Não pode estar vazio';
+    if(isEmpty(data.password)) password.email= 'Não pode estar vazio';
   
     
   return {
