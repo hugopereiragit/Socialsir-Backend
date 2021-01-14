@@ -1,3 +1,5 @@
+const { user } = require("firebase-functions/lib/providers/auth");
+
 const isEmail = (email) => {
     //reg expression retirada da net para verificar se o email e valido
     // https://emailregex.com/
@@ -52,4 +54,19 @@ const isEmail = (email) => {
     errors,
     valid: Object.keys(errors).length === 0 ? true : false // no keys fica true se tiver fica false (0 erros a data e valida)
 }
+  }
+
+//react manda isto empty caso utilizador n preencha
+  exports.reduceUserDetails = (data) =>{
+    let userDetails = {};
+    if(!isEmpty(data.bio.trim())) userDetails.bio = data.bio;
+    if(!isEmpty(data.website.trim())){
+      // https://website.com
+      // pegamos em h t t p se nao tiver acvresentamos
+      if(data.website.trim().substring(0,4) != 'http'){
+        userDetails.website = `http://${data.website.trim()}`;
+      } else userDetails.website = data.website;
+    }
+    if(!isEmpty(data.location.trim())) userDetails.location = data.location;
+    return userDetails;
   }
