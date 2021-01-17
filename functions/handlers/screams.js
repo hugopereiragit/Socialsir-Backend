@@ -13,7 +13,10 @@ exports.getAllScreams = (req,res) => {
                 screamId: doc.id, //screamID
                 body: doc.data().body,
                 userHandle: doc.data().userHandle,
-                createdAt: doc.data().createdAt
+                createdAt: doc.data().createdAt,
+                commentCount: doc.data().commentCount,
+                likeCount: doc.data().likeCount,
+                userImage: doc.data().userImage
               });
               });
               return res.json(screams);
@@ -81,7 +84,7 @@ exports.getAllScreams = (req,res) => {
         };
         //comment em scream
         exports.commentarioEmScream = (req,res) => {
-          if(req.body.body.trim() === '') return res.status(400).json({error : 'Não deve estar vazio'});
+          if(req.body.body.trim() === '') return res.status(400).json({ comment : 'Não deve estar vazio'});
 
           const newComment = {
             body: req.body.body,

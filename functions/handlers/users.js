@@ -56,7 +56,7 @@ exports.signup = (req,res) => {
     }else {
   
     
-    return res.status(500).json({error : err.code});
+    return res.status(500).json({ general : 'Alguma coisa está errada. Por favor tenta de novo'});
     }
   })
   
@@ -92,8 +92,9 @@ exports.signup = (req,res) => {
     })
     .catch(err =>{
       console.error(err);
+      // auth/wrong-password
       if(err.code === 'auth/wrong-password'){
-        return res.status(403).json({ general: "Password Errada "}); // 403 = nao autorizado
+        return res.status(403).json({ general: "Credenciaís errados. Por favor tente de novo"}); // 403 = nao autorizado
       } else {
         return res.status(500).json({
           error: err.code
@@ -157,7 +158,69 @@ exports.getDetalhesUser = (req, res) => {
 
 
 //dados do proprio utilizador
-exports.getUserAutenticado = (req,res) => {
+exports.getUserAutenticado = (req, res) => {
+  let userData = {};
+  db.doc(`/users/${req.user.handle}`)
+    .get()
+    .then((doc) => {
+      if (doc.exists) {
+        userData.credentials = doc.data();
+        return db
+          .collection("likes")
+          .where("userHandle", "==", req.user.handle)
+          .get();
+      }
+    })
+    .then((data) => {
+      userData.likes = [];
+      data.forEach((doc) => {
+        userData.likes.push(doc.data());
+      });
+      return db
+        .collection("notifications")
+        .where("recipient", "==", req.user.handle)
+        .orderBy("createdAt", "desc")
+        .limit(10)
+        .get();
+    })
+    .then((data) => {
+      userData.notifications = [];
+      data.forEach((doc) => {
+        userData.notifications.push({
+          recipient: doc.data().recipient,
+          sender: doc.data().sender,
+          createdAt: doc.data().createdAt,
+          screamId: doc.data().screamId,
+          type: doc.data().type,
+          read: doc.data().read,
+          notificationId: doc.id,
+        });
+      });
+      return res.json(userData);
+    })
+    .catch((err) => {
+      console.error(err);
+      return res.status(500).json({ error: err.code });
+    });
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*(req,res) => {
   let userData = {};
   db.doc(`/users/${req.user.handle}`).get()
   .then(doc => {
@@ -172,14 +235,20 @@ exports.getUserAutenticado = (req,res) => {
     userData.likes = [];
     data.forEach( doc => {
       userData.likes.push(doc.data());
-    });
-    return res.json(userData);
+      });
+      return db
+      .collection("notifications")
+      .where("recipient", "==", req.user.handle)
+      .orderBy("createdAt", "desc")
+      .limit(10)
+      .get();
+
   })
   .catch(err => {
     console.error(err);
     return res.status(500).json({error: err.code});
   });
-}
+}*/
 
 
 //profile image para o utilizador
@@ -230,4 +299,24 @@ admin.storage().bucket().upload(imageToBeUploaded.filepath, {
 });
 });
 busboy.end(req.rawBody);
-  }
+  };
+
+
+  
+
+exports.markNotificationsRead = (req, res) => {
+  let batch = db.batch();
+  req.body.forEach((notificationId) => {
+    const notification = db.doc(`/notifications/${notificationId}`);
+    batch.update(notification, { read: true });
+  });
+  batch
+    .commit()
+    .then(() => {
+      return res.json({ message: "Notifications marked read" });
+    })
+    .catch((err) => {
+      console.error(err);
+      return res.status(500).json({ error: err.code });
+    });
+};

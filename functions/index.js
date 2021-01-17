@@ -4,10 +4,10 @@ const app = require('express')();
 
 const FBAuth = require('./util/fbAuth');
 
-const db = require('./util/admin');
+const {db} = require('./util/admin');
 //imports
 const { getAllScreams ,postOneScream,getScream,commentarioEmScream,likeScream,unlikeScream,apagarScream} = require('./handlers/screams'); 
-const { signup, login, uploadImage,addUserDetails,getUserAutenticado,getDetalhesUser} = require('./handlers/users');
+const { signup, login, uploadImage,addUserDetails,getUserAutenticado,getDetalhesUser,markNotificationsRead} = require('./handlers/users');
 
 
 
@@ -29,14 +29,16 @@ app.post('/user/image',FBAuth,uploadImage);
 app.post('/user',FBAuth,addUserDetails);
 app.get('/user',FBAuth, getUserAutenticado);
 app.get('/user/:handle',getDetalhesUser);
-
+app.post('/notifications', FBAuth, markNotificationsRead);
 // express permite exemplo hhtps//blabla.com/API/screams em vez de https//blabla.com/Screams
 exports.api = functions.https.onRequest(app);
 
 
 
-//todo make notifications work
+// TODO FAZER FUNÇOES PARA AS NOTIFICAÇÕES
+// TODO RESOLVER O DELAY ENORME DOS TRIGGERS
 exports.createNotificationOnLike = functions
+.region('europe-west1')
   .firestore.document('likes/{id}')
   .onCreate((snapshot) => {
     return db
@@ -44,8 +46,7 @@ exports.createNotificationOnLike = functions
       .get()
       .then((doc) => {
         if (
-          doc.exists &&
-          doc.data().userHandle !== snapshot.data().userHandle
+          doc.exists
         ) {
           return db.doc(`/notifications/${snapshot.id}`).set({
             createdAt: new Date().toISOString(),
@@ -61,6 +62,7 @@ exports.createNotificationOnLike = functions
   });
   
 exports.deleteNotificationOnUnLike = functions
+.region('europe-west1')
   .firestore.document('likes/{id}')
   .onDelete((snapshot) => {
     return db
@@ -73,6 +75,7 @@ exports.deleteNotificationOnUnLike = functions
   });
   
 exports.createNotificationOnComment = functions
+.region('europe-west1')
   .firestore.document('comments/{id}')
   .onCreate((snapshot) => {
     return db
@@ -99,6 +102,68 @@ exports.createNotificationOnComment = functions
       });
   });
 
+  exports.onUserImageChange = functions
+  .region('europe-west1')
+  .firestore.document('/users/{userId}')
+  .onUpdate((change) => {
+    console.log(change.before.data());
+    console.log(change.after.data());
+    if (change.before.data().imageUrl !== change.after.data().imageUrl) {
+      console.log('a imagem mudou');
+      const batch = db.batch();
+      return db
+        .collection('screams')
+        .where('userHandle', '==', change.before.data().handle)
+        .get()
+        .then((data) => {
+          data.forEach((doc) => {
+            const scream = db.doc(`/screams/${doc.id}`);
+            batch.update(scream, { userImage: change.after.data().imageUrl });
+          });
+          return batch.commit();
+        });
+    } else return true;
+  }); 
+
+
+
+
+  exports.onScreamDelete = functions
+  .region('europe-west1')
+  .firestore.document('/screams/{screamId}')
+  .onDelete((snapshot, context) => {
+    const screamId = context.params.screamId;
+    const batch = db.batch();
+    return db
+      .collection('comments')
+      .where('screamId', '==', screamId)
+      .get()
+      .then((data) => {
+        data.forEach((doc) => {
+          batch.delete(db.doc(`/comments/${doc.id}`));
+        });
+        return db
+          .collection('likes')
+          .where('screamId', '==', screamId)
+          .get();
+      })
+      .then((data) => {
+        data.forEach((doc) => {
+          batch.delete(db.doc(`/likes/${doc.id}`));
+        });
+        return db
+          .collection('notifications')
+          .where('screamId', '==', screamId)
+          .get();
+      })
+      .then((data) => {
+        data.forEach((doc) => {
+          batch.delete(db.doc(`/notifications/${doc.id}`));
+        });
+        return batch.commit();
+      })
+      .catch((err) => console.error(err));
+  });
 
 
 /* exports.getScreams = functions.https.onRequest((req, res)=>{
