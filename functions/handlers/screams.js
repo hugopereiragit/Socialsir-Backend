@@ -40,7 +40,7 @@ exports.getAllScreams = (req,res) => {
        createdAt: new Date().toISOString(),
        likeCount: 0,
        commentCount: 0,
-       imageUrl: ""
+       imageUrl: req.body.imageUrl
      };
      
      db
