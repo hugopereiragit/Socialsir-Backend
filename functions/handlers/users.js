@@ -18,30 +18,30 @@ exports.signup = (req,res) => {
 
 
     const{ valid,errors } = validateSignupData(newUser);
-    if(!valid) return res.status(400).json(errors);
+    if(!valid) return res.status(400).json(errors); // se não for valido devolvemos erros
  
-    const noImg = 'no-img.png'
+    const noImg = 'no-img.png' // imagem  vazia
  
     let token, userId; //user ID como variavel para ser acedivel
     db.doc(`/users/${newUser.handle}`).get()
     .then(doc => {
       if(doc.exists){ //user ja existe
-        return res.status(400).json({ handle: 'this handle is allready taken'});
+        return res.status(400).json({ handle: 'Este nome já foi escolhido'});
       } else { 
       return firebase.auth().createUserWithEmailAndPassword(newUser.email, newUser.password)
       }
     })
-  .then(data =>{
+  .then(data =>{ // login depois do signup
     userId = data.user.uid;
    return data.user.getIdToken();
   })
   .then(idToken => {
     token = idToken;
-    const userCredentials = {
+    const userCredentials = { // credenciais para o firebase
       handle : newUser.handle,
       email: newUser.email,
       createdAt: new Date().toISOString(),
-      imageUrl:  `https://firebasestorage.googleapis.com/v0/b/${config.storageBucket}/o/${noImg}?alt=media`,
+      imageUrl:  `https://firebasestorage.googleapis.com/v0/b/${config.storageBucket}/o/${noImg}?alt=media`, //imagem vazia default
       userId
     };
     db.doc(`/users/${newUser.handle}`).set(userCredentials); //criar o documento
@@ -85,10 +85,10 @@ exports.signup = (req,res) => {
 
     firebase.auth().signInWithEmailAndPassword(user.email, user.password)
     .then(data => {
-      return data.user.getIdToken();
+      return data.user.getIdToken(); //buscar a token
     })
     .then(token => {
-      return res.json({token});
+      return res.json({token}); //passar a token
     })
     .catch(err =>{
       console.error(err);

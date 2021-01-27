@@ -8,7 +8,7 @@ app.use(cors());
 
 const {db} = require('./util/admin');
 //imports
-const { getAllScreams ,postOneScream,getScream,commentarioEmScream,likeScream,unlikeScream,apagarScream} = require('./handlers/screams'); 
+const { getAllScreams ,postOneScream,getScream,commentarioEmScream,likeScream,unlikeScream,apagarScream, uploadImageScream} = require('./handlers/screams'); 
 const { signup, login, uploadImage,addUserDetails,getUserAutenticado,getDetalhesUser,markNotificationsRead} = require('./handlers/users');
 
 
@@ -23,6 +23,7 @@ app.post('/scream/:screamId/comment',FBAuth,commentarioEmScream);
 app.get('/scream/:screamId/like',FBAuth,likeScream);
 app.get('/scream/:screamId/unlike',FBAuth,unlikeScream);
 app.delete('/scream/:screamId',FBAuth,apagarScream);
+app.post('/scream/:screamId/image',FBAuth,uploadImageScream);
 
 // user routs
 app.post('/signup', signup);
